@@ -56,22 +56,20 @@ class ilTestArchiver
      * <external directory>/<client>/tst_data/archive/tst_<obj_id>/
      * 		- archive_data_index.dat
      * 		- archive_log.log
-     *
      * 		- test_log.log
-     *
-     * 		- test_results_v<n>.pdf
-     * 		- test_results_v<n>.csv
+     * 		- test_results.pdf
+     * 		- test_results.csv
      *
      * 		-> best_solution/
-     * 			best_solution_v<n>.pdf
-     * 			-> /materials/q_<question_fi>/<n>_<filename>
+     * 			- best_solution.pdf
+     * 			-> /materials/<question_fi>/<n>_<filename>
      *
      * 		-> <year>/<month>/<day>/<ActiveFi>_<Pass>[_<Lastname>][_<Firstname>][_<Matriculation>]/
-     * 			-> test_submission.pdf
-     * 			-> test_submission.html
-     * 			-> test_submission.sig (et al)
-     * 			-> test_result_v<n>.pdf
-     * 			-> /materials_v<n>/<question_fi>/<n>_<filename>
+     * 			- test_submission.pdf
+     * 			- test_submission.html
+     * 			- test_submission.sig (et al)
+     * 			- test_result.pdf
+     * 			-> /materials/<question_fi>/<filename>
      */
 
     #region Properties
@@ -82,7 +80,7 @@ class ilTestArchiver
     protected $archive_data_index;		/** @var $archive_data_index array[string[]] Archive data index as associative array */
 
     protected $ilDB;					/** @var $ilDB ilDBInterface */
-    
+
     /**
      * @var ilTestParticipantData
      */
@@ -106,10 +104,10 @@ class ilTestArchiver
         $this->ilDB = $ilias->db;
 
         $this->archive_data_index = $this->readArchiveDataIndex();
-        
+
         $this->participantData = null;
     }
-    
+
     /**
      * @return ilTestParticipantData
      */
@@ -117,7 +115,7 @@ class ilTestArchiver
     {
         return $this->participantData;
     }
-    
+
     /**
      * @param ilTestParticipantData $participantData
      */
@@ -186,6 +184,46 @@ class ilTestArchiver
     }
 
     /**
+     * @param $active_fi
+     * @param $pass
+     * @param $file_path
+     * @return void
+     */
+    public function handInParticipantUploadedResults($active_fi, $pass, $tst_obj){
+        $questions = $tst_obj->getQuestionsOfPass($active_fi, $pass);
+        foreach ($questions as $question) {
+            $question = $tst_obj->getQuestionDataset($question['question_fi']);
+            if ($question->type_tag === 'assFileUpload') {
+                $local_folder = CLIENT_WEB_DIR . '/assessment/tst_' . $tst_obj->test_id . self::DIR_SEP . $active_fi . self::DIR_SEP . $question->question_id . '/files/';
+                if (!file_exists($local_folder)) {
+                    continue; // no file submissions
+                }
+                $this->ensureTestArchiveIsAvailable();
+                $this->ensurePassDataDirectoryIsAvailable($active_fi, $pass);
+                $folder_content = scandir($local_folder);
+                $folder_content = array_diff($folder_content, array('.', '..'));
+                $this->ensurePassMaterialsDirectoryIsAvailable($active_fi, $pass);
+                $pass_material_directory = $this->getPassMaterialsDirectory($active_fi, $pass);
+                $archive_folder = $pass_material_directory . self::DIR_SEP . $question->question_id . self::DIR_SEP;
+                if (!file_exists($archive_folder)) {
+                    mkdir($archive_folder, 0777, true);
+                }
+                foreach ($folder_content as $file_name) {
+                    if (preg_match('/file_(\d+)_(\d+)_(\d+)/', $file_name, $matches)){
+                        if ($active_fi == intval($matches[1]) && $pass == $matches[2]){
+
+                            $local_file= $local_folder . $file_name;
+                            $target_destination = $archive_folder . $file_name;
+                            copy($local_file, $target_destination);
+                            $this->logArchivingProcess(date(self::LOG_DTSGROUP_FORMAT) . self::LOG_ADDITION_STRING . $target_destination);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Hands in a participants file, which is relevant for archiving but an unspecified type.
      *
      * Examples for such are signature files, remarks, feedback or the like.
@@ -213,7 +251,7 @@ class ilTestArchiver
     public function handInTestBestSolution($html_string, $pdf_path)
     {
         $this->ensureTestArchiveIsAvailable();
-        
+
         $best_solution_path = $this->getTestArchive() . self::DIR_SEP . self::TEST_BEST_SOLUTION_PATH_COMPONENT;
         if (!is_dir($best_solution_path)) {
             mkdir($best_solution_path, 0777, true);
@@ -355,7 +393,6 @@ class ilTestArchiver
         if (!$this->hasTestArchive()) {
             $this->createArchiveForTest();
         }
-        return;
     }
 
     /**
@@ -393,8 +430,6 @@ class ilTestArchiver
 
         $filename = realpath($this->getTestArchive()) . self::DIR_SEP . 'participant_pass_overview.pdf';
         ilTestPDFGenerator::generatePDF($output_template->get(), ilTestPDFGenerator::PDF_OUTPUT_FILE, $filename, PDF_USER_RESULT);
-        
-        return;
     }
 
     public function ensureZipExportDirectoryExists()
@@ -439,12 +474,11 @@ class ilTestArchiver
     {
         $this->updateTestArchive();
         $this->ensureZipExportDirectoryExists();
-        
+
         $zip_output_path = $this->getZipExportDirectory();
         $zip_output_filename = 'test_archive_obj_' . $this->test_obj_id . '_' . time() . '_.zip';
-        
+
         ilUtil::zip($this->getTestArchive(), $zip_output_path . self::DIR_SEP . $zip_output_filename, true);
-        return;
     }
 
     #endregion
@@ -465,7 +499,6 @@ class ilTestArchiver
      */
     protected function hasPassDataDirectory($active_fi, $pass)
     {
-        $pass_data_dir = $this->getPassDataDirectory($active_fi, $pass);
         return is_dir($this->getPassDataDirectory($active_fi, $pass));
     }
 
@@ -480,9 +513,8 @@ class ilTestArchiver
     protected function createPassDataDirectory($active_fi, $pass)
     {
         mkdir($this->getPassDataDirectory($active_fi, $pass), 0777, true);
-        return;
     }
-    
+
     private function buildPassDataDirectory($active_fi, $pass)
     {
         foreach ($this->archive_data_index as $data_index_entry) {
@@ -491,7 +523,7 @@ class ilTestArchiver
                 return $this->getTestArchive() . self::DIR_SEP . implode(self::DIR_SEP, $data_index_entry);
             }
         }
-        
+
         return null;
     }
 
@@ -506,7 +538,7 @@ class ilTestArchiver
     protected function getPassDataDirectory($active_fi, $pass)
     {
         $passDataDir = $this->buildPassDataDirectory($active_fi, $pass);
-        
+
         if (!$passDataDir) {
             $test_obj = new ilObjTest($this->test_obj_id, false);
             if ($test_obj->getAnonymity()) {
@@ -527,7 +559,7 @@ class ilTestArchiver
                     $matriculation = $ilUser->getMatriculation();
                 }
             }
-            
+
             $this->appendToArchiveDataIndex(
                 date(DATE_ISO8601),
                 $active_fi,
@@ -536,10 +568,10 @@ class ilTestArchiver
                 $lastname,
                 $matriculation
             );
-            
+
             $passDataDir = $this->buildPassDataDirectory($active_fi, $pass);
         }
-        
+
         return $passDataDir;
     }
 
@@ -558,7 +590,6 @@ class ilTestArchiver
         if (!$this->hasPassDataDirectory($active_fi, $pass)) {
             $this->createPassDataDirectory($active_fi, $pass);
         }
-        return;
     }
 
     #endregion
@@ -588,35 +619,12 @@ class ilTestArchiver
      * @param $active_fi	integer	ActiveFI of the participant.
      * @param $pass			integer Pass number of the test.
      *
-     * @return void
      */
     protected function createPassMaterialsDirectory($active_fi, $pass)
     {
-        // Data are taken from the current user as the implementation expects the first interaction of the pass
-        // takes place from the usage/behaviour of the current user.
-        
-        if ($this->getParticipantData()) {
-            $usrData = $this->getParticipantData()->getUserDataByActiveId($active_fi);
-            $user = new ilObjUser();
-            $user->setFirstname($usrData['firstname']);
-            $user->setLastname($usrData['lastname']);
-            $user->setMatriculation($usrData['matriculation']);
-            $user->setFirstname($usrData['firstname']);
-        } else {
-            global $DIC;
-            $ilUser = $DIC['ilUser'];
-            $user = $ilUser;
-        }
-
-        $this->appendToArchiveDataIndex(
-            date('Y'),
-            $active_fi,
-            $pass,
-            $user->getFirstname(),
-            $user->getLastname(),
-            $user->getMatriculation()
-        );
-        mkdir($this->getPassMaterialsDirectory($active_fi, $pass), 0777, true);
+        $material_directory = $this->getPassMaterialsDirectory($active_fi, $pass);
+        mkdir($material_directory, 0777, true);
+        return $material_directory;
     }
 
     /**
@@ -629,7 +637,7 @@ class ilTestArchiver
      */
     protected function getPassMaterialsDirectory($active_fi, $pass)
     {
-        $pass_data_directory = $this->getPassMaterialsDirectory($active_fi, $pass);
+        $pass_data_directory = $this->getPassDataDirectory($active_fi, $pass);
         return $pass_data_directory . self::DIR_SEP . self::PASS_MATERIALS_PATH_COMPONENT;
     }
 
@@ -698,20 +706,19 @@ class ilTestArchiver
     protected function appendToArchiveDataIndex($date, $active_fi, $pass, $user_firstname, $user_lastname, $matriculation)
     {
         $line = $this->determinePassDataPath($date, $active_fi, $pass, $user_firstname, $user_lastname, $matriculation);
-        
+
         $this->archive_data_index[] = $line;
         $output_contents = '';
-        
+
         foreach ($this->archive_data_index as $line_data) {
             if ($line_data['identifier'] == "|") {
                 continue;
             }
             $output_contents .= implode('|', $line_data) . "\n";
         }
-        
+
         file_put_contents($this->getTestArchive() . self::DIR_SEP . self::DATA_INDEX_FILENAME, $output_contents);
         $this->readArchiveDataIndex();
-        return;
     }
 
     /**
