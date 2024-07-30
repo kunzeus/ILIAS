@@ -1120,7 +1120,6 @@ class ilObjUser extends ilObject
 
         // delete user_prefs
         self::_deleteAllPref($this->getId());
-
         $this->removeUserPicture(false); // #8597
 
         // delete user_session
@@ -1985,19 +1984,7 @@ class ilObjUser extends ilObject
         int $a_user_id,
         string $a_session_id
     ): bool {
-        global $DIC;
-
-        $ilDB = $DIC['ilDB'];
-
-        $set = $ilDB->queryf(
-            '
-			SELECT COUNT(*) session_count
-			FROM usr_session WHERE user_id = %s AND expires > %s AND session_id != %s ',
-            ['integer', 'integer', 'text'],
-            [$a_user_id, time(), $a_session_id]
-        );
-        $row = $ilDB->fetchAssoc($set);
-        return (bool) $row['session_count'];
+        return ilSession::hasMoreThanOneActiveSession($a_user_id, $a_session_id);
     }
 
     /**
@@ -3639,27 +3626,37 @@ class ilObjUser extends ilObject
         $where = [];
 
         if ($a_user_id === 0) {
-            $where[] = 'user_id > 0';
+            $where[] = 'u.usr_id > 0';
         } else {
-            $where[] = 'user_id = ' . $ilDB->quote($a_user_id, 'integer');
+            $where[] = 'u.usr_id = ' . $ilDB->quote($a_user_id, 'integer');
         }
 
         if ($a_no_anonymous) {
-            $where[] = 'user_id != ' . $ilDB->quote(ANONYMOUS_USER_ID, 'integer');
+            $where[] = 'u.usr_id != ' . $ilDB->quote(ANONYMOUS_USER_ID, 'integer');
         }
 
         if (ilUserAccountSettings::getInstance()->isUserAccessRestricted()) {
             $where[] = $ilDB->in('time_limit_owner', ilUserFilter::getInstance()->getFolderIds(), false, 'integer');
         }
 
-        $where[] = 'expires > ' . $ilDB->quote($ctime, 'integer');
+        // Ensure to exclude users with hidden online status
         $where[] = '(p.value IS NULL OR NOT p.value = ' . $ilDB->quote('y', 'text') . ')';
 
-        $where = 'WHERE ' . implode(' AND ', $where);
+        // Get active user IDs from session
+        $user_ids = ilSession::getActiveUserIds();
+        if (empty($user_ids)) {
+            return []; // No active users
+        }
 
-        $r = $ilDB->queryF(
-            $q = "
-			SELECT COUNT(user_id) num, user_id, firstname, lastname, title, login, last_login, MAX(ctime) ctime, context, agree_date
+//        $user_ids_placeholder = implode(',', array_fill(0, count($user_ids), '?'));
+        $user_ids_placeholder = implode(',', $user_ids);
+
+        //$where[] = 'expires > ' . $ilDB->quote($ctime, 'integer');
+        $where[] = 'u.usr_id IN (' . $user_ids_placeholder . ')';
+
+        $where_clause = 'WHERE ' . implode(' AND ', $where);
+        /*
+         * SELECT COUNT(user_id) num, user_id, firstname, lastname, title, login, last_login, MAX(ctime) ctime, context, agree_date
 			FROM usr_session
 			LEFT JOIN usr_data u
 				ON user_id = u.usr_id
@@ -3669,6 +3666,18 @@ class ilObjUser extends ilObject
 			GROUP BY user_id, firstname, lastname, title, login, last_login, context, agree_date
 			ORDER BY lastname, firstname
 			",
+         */
+        // TODO missing context and ctime
+        $r = $ilDB->queryF(
+            $q = "
+                SELECT COUNT(u.usr_id) num, u.usr_id as user_id, u.firstname, u.lastname, u.title, u.login, u.last_login, p.value as context, u.agree_date
+                FROM usr_data u
+                LEFT JOIN usr_pref p
+                    ON (p.usr_id = u.usr_id AND p.keyword = %s)
+                $where_clause
+                GROUP BY u.usr_id, u.firstname, u.lastname, u.title, u.login, u.last_login, p.value, u.agree_date
+                ORDER BY u.lastname, u.firstname
+                ",
             ['text'],
             ['hide_own_online_status']
         );
@@ -3684,7 +3693,7 @@ class ilObjUser extends ilObject
 
         $log->debug("Found users: " . count($users));
 
-        $hide_users = $DIC['legalDocuments']->usersWithHiddenOnlineStatus(array_map(intval(...), array_column($users, 'user_id')));
+        $hide_users = $DIC['legalDocuments']->usersWithHiddenOnlineStatus(array_map('intval', array_column($users, 'user_id')));
         $users = array_filter(
             $users,
             fn($user) => !in_array((int) $user['user_id'], $hide_users, true)

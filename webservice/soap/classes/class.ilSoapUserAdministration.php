@@ -858,19 +858,10 @@ class ilSoapUserAdministration extends ilSoapAdministration
             return $this->raiseError($this->getMessage(), $this->getMessageCode());
         }
 
-        global $DIC;
-
-        $ilDB = $DIC['ilDB'];
-
-        $parts = explode('::', $sid);
-        $query = "SELECT usr_id FROM usr_session "
-            . "INNER JOIN usr_data ON usr_id = user_id WHERE session_id = %s";
-        $res = $ilDB->queryF($query, array('text'), array($parts[0]));
-        $data = $ilDB->fetchAssoc($res);
-
-        if (!(int) $data['usr_id']) {
+        $user_id = ilSession::getUserIdBySessionId($sid);
+        if (is_bool($user_id) && !$user_id) {
             $this->raiseError('User does not exist', 'Client');
         }
-        return (int) $data['usr_id'];
+        return $user_id;
     }
 }

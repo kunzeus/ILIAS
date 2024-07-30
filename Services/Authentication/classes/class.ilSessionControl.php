@@ -287,7 +287,7 @@ class ilSessionControl
     }
 
     /**
-     * kicks sessions of users that abidence after login
+     * kicks sessions of users that abidance after login
      * so people could not login and go for coffe break ;-)
      */
     private static function kickFirstRequestAbidencer(array $a_types): void
