@@ -38,14 +38,14 @@ class ilSessionControl
      *
      * @var array $setting_fields
      */
-    private static array $setting_fields = array(
+    private static array $setting_fields = [
         'session_max_count',
         'session_min_idle',
         'session_max_idle',
         'session_max_idle_after_first_request',
         'session_allow_client_maintenance',
-        'session_handling_type'
-    );
+        'session_handling_type',
+    ];
 
     /**
      * session types from which one is
@@ -64,10 +64,10 @@ class ilSessionControl
      *
      * @var array $session_types_not_controlled
      */
-    public static array $session_types_controlled = array(
+    public static array $session_types_controlled = [
         self::SESSION_TYPE_USER,
-        self::SESSION_TYPE_ANONYM
-    );
+        self::SESSION_TYPE_ANONYM,
+    ];
 
     /**
      * all session types that will be ignored when count of sessions
@@ -75,11 +75,11 @@ class ilSessionControl
      *
      * @var array $session_types_not_controlled
      */
-    private static array $session_types_not_controlled = array(
+    private static array $session_types_not_controlled = [
         self::SESSION_TYPE_UNKNOWN,
         self::SESSION_TYPE_SYSTEM,
-        self::SESSION_TYPE_ADMIN
-    );
+        self::SESSION_TYPE_ADMIN,
+    ];
 
     /**
      * when current session is allowed to be created it marks it with
@@ -118,7 +118,10 @@ class ilSessionControl
         self::debug(__METHOD__ . " --> update sessions type to (" . $type . ")");
 
         // do not handle login event in fixed duration mode
-        if ((int) $ilSetting->get('session_handling_type', (string) ilSession::SESSION_HANDLING_FIXED) !== ilSession::SESSION_HANDLING_LOAD_DEPENDENT) {
+        if ((int) $ilSetting->get(
+            'session_handling_type',
+            (string) ilSession::SESSION_HANDLING_FIXED
+        ) !== ilSession::SESSION_HANDLING_LOAD_DEPENDENT) {
             return true;
         }
 
@@ -209,7 +212,7 @@ class ilSessionControl
                         $ilAppEventHandler->raise(
                             'Services/Authentication',
                             'reachedSessionPoolLimit',
-                            array()
+                            []
                         );
 
                         // auth won't do this, we need to close session properly
@@ -243,10 +246,10 @@ class ilSessionControl
         $ts = time();
 
         $query = "SELECT count(session_id) AS num_sessions FROM usr_session " .
-                    "WHERE expires > %s " .
-                    "AND " . $ilDB->in('type', $a_types, false, 'integer');
+            "WHERE expires > %s " .
+            "AND " . $ilDB->in('type', $a_types, false, 'integer');
 
-        $res = $ilDB->queryF($query, array('integer'), array($ts));
+        $res = $ilDB->queryF($query, ['integer'], [$ts]);
         return (int) $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)->num_sessions;
     }
 
@@ -267,13 +270,13 @@ class ilSessionControl
         $max_idle = (int) $ilSetting->get('session_max_idle', (string) self::DEFAULT_MAX_IDLE) * 60;
 
         $query = "SELECT session_id,expires FROM usr_session WHERE expires >= %s " .
-                "AND (expires - %s) < (%s - %s) " .
-                "AND " . $ilDB->in('type', $a_types, false, 'integer') . " ORDER BY expires";
+            "AND (expires - %s) < (%s - %s) " .
+            "AND " . $ilDB->in('type', $a_types, false, 'integer') . " ORDER BY expires";
 
         $res = $ilDB->queryF(
             $query,
-            array('integer', 'integer', 'integer', 'integer'),
-            array($ts, $ts, $max_idle, $min_idle)
+            ['integer', 'integer', 'integer', 'integer'],
+            [$ts, $ts, $max_idle, $min_idle]
         );
 
         if ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
@@ -287,7 +290,7 @@ class ilSessionControl
     }
 
     /**
-     * kicks sessions of users that abidence after login
+     * kicks sessions of users that abidance after login
      * so people could not login and go for coffe break ;-)
      */
     private static function kickFirstRequestAbidencer(array $a_types): void
@@ -304,17 +307,17 @@ class ilSessionControl
         }
 
         $query = "SELECT session_id,expires FROM usr_session WHERE " .
-                "(ctime - createtime) < %s " .
-                "AND (%s - createtime) > %s " .
-                "AND " . $ilDB->in('type', $a_types, false, 'integer');
+            "(ctime - createtime) < %s " .
+            "AND (%s - createtime) > %s " .
+            "AND " . $ilDB->in('type', $a_types, false, 'integer');
 
         $res = $ilDB->queryF(
             $query,
-            array('integer', 'integer', 'integer'),
-            array($max_idle_after_first_request, time(), $max_idle_after_first_request)
+            ['integer', 'integer', 'integer'],
+            [$max_idle_after_first_request, time(), $max_idle_after_first_request]
         );
 
-        $session_ids = array();
+        $session_ids = [];
         while ($row = $res->fetchRow(ilDBConstants::FETCHMODE_OBJECT)) {
             $session_ids[$row->session_id] = $row->expires;
         }
@@ -327,7 +330,7 @@ class ilSessionControl
      * checks if session exists for given id
      * and if it is still valid
      *
-     * @return	boolean		session_valid
+     * @return    bool        session_valid
      */
     private static function isValidSession(string $a_sid): bool
     {
@@ -336,13 +339,13 @@ class ilSessionControl
         $ilDB = $DIC['ilDB'];
 
         $query = "SELECT session_id, expires FROM usr_session " .
-                    "WHERE session_id = %s";
+            "WHERE session_id = %s";
 
-        $res = $ilDB->queryF($query, array('text'), array($a_sid));
+        $res = $ilDB->queryF($query, ['text'], [$a_sid]);
 
         $ts = time();
 
-        $sessions = array();
+        $sessions = [];
 
         while ($row = $ilDB->fetchAssoc($res)) {
             if ($row['expires'] > $ts) {
@@ -378,11 +381,11 @@ class ilSessionControl
     }
 
     /**
-     * checks wether a given user login relates to an user
+     * checks weather a given user login relates to an user
      * with administrative permissions
      *
+     * @return bool access
      * @global ilRbacSystem $rbacsystem
-     * @return boolean access
      */
     private static function checkAdministrationPermission(int $a_user_id): bool
     {
@@ -406,7 +409,7 @@ class ilSessionControl
     /**
      * logs the given debug message in \ilLogger
      *
-     * @param	string	$a_debug_log_message
+     * @param string $a_debug_log_message
      */
     private static function debug(string $a_debug_log_message): void
     {

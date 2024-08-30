@@ -30,7 +30,6 @@ class ilSessionReminderCheck
     private GlobalHttpState $http;
     private Refinery $refinery;
     private ilLanguage $lng;
-    private ilDBInterface $db;
     private ilIniFile $clientIni;
     private ilLogger $logger;
     private ClockInterface $clock;
@@ -47,7 +46,6 @@ class ilSessionReminderCheck
         $this->http = $http;
         $this->refinery = $refinery;
         $this->lng = $lng;
-        $this->db = $db;
         $this->clientIni = $clientIni;
         $this->logger = $logger;
         $this->clock = $utcClock;
@@ -67,15 +65,9 @@ class ilSessionReminderCheck
         // disable session writing and extension of expiration time
         ilSession::enableWebAccessWithoutSession(true);
 
+        $sessions = ilSession::getSessionBySessionId(MD5($sessionIdHash));
+        $num = count($sessions);
         $response = ['remind' => false];
-
-        $res = $this->db->queryF(
-            'SELECT expires, user_id, data FROM usr_session WHERE MD5(session_id) = %s',
-            ['text'],
-            [$sessionIdHash]
-        );
-
-        $num = $this->db->numRows($res);
 
         if (0 === $num) {
             $response['message'] = 'ILIAS could not determine the session data.';
@@ -87,13 +79,12 @@ class ilSessionReminderCheck
             return $this->toJsonResponse($response);
         }
 
-        $data = $this->db->fetchAssoc($res);
-        if (!$this->isAuthenticatedUsrSession($data)) {
+        if (!$this->isAuthenticatedUsrSession($sessions)) {
             $response['message'] = 'ILIAS could not fetch the session data or the corresponding user is no more authenticated.';
             return $this->toJsonResponse($response);
         }
 
-        $expirationTime = (int) $data['expires'];
+        $expirationTime = (int) $sessions['expires'];
         if (null === $expirationTime) {
             $response['message'] = 'ILIAS could not determine the expiration time from the session data.';
             return $this->toJsonResponse($response);
@@ -105,7 +96,7 @@ class ilSessionReminderCheck
         }
 
         /** @var ilObjUser $user */
-        $ilUser = ilObjectFactory::getInstanceByObjId((int) $data['user_id'], false);
+        $ilUser = ilObjectFactory::getInstanceByObjId((int) $sessions['user_id'], false);
         if (!($ilUser instanceof ilObjUser)) {
             $response['message'] = 'ILIAS could not fetch the session data or the corresponding user is no more authenticated.';
             return $this->toJsonResponse($response);

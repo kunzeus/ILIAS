@@ -625,7 +625,7 @@ class ilSoapUserAdministration extends ilSoapAdministration
 
     /**
      * return user  mapping as xml
-     * @param array (user_id => login) $a_array
+     * @param array $a_array (user_id => login) $a_array
      */
     private function getUserMappingAsXML(array $a_array)
     {
@@ -661,12 +661,13 @@ class ilSoapUserAdministration extends ilSoapAdministration
 
     /**
      * return user xml following dtd 3.7
-     * @param string $sid           session id
-     * @param array $a_keyfields    array of user fieldname, following dtd 3.7
-     * @param string $queryOperator any logical operator
-     * @param array $a_keyValues  values separated by space, at least 3 chars per search term
-     * @param bool
-     * @param int
+     *
+     * @param string $sid         session id
+     * @param array  $a_keyfields array of user fieldname, following dtd 3.7
+     * @param string $query_operator
+     * @param array  $a_keyvalues
+     * @param bool   $attach_roles
+     * @param int    $active
      * @return soap_fault|SoapFault|null|string
      */
     public function searchUser(
@@ -858,19 +859,10 @@ class ilSoapUserAdministration extends ilSoapAdministration
             return $this->raiseError($this->getMessage(), $this->getMessageCode());
         }
 
-        global $DIC;
-
-        $ilDB = $DIC['ilDB'];
-
-        $parts = explode('::', $sid);
-        $query = "SELECT usr_id FROM usr_session "
-            . "INNER JOIN usr_data ON usr_id = user_id WHERE session_id = %s";
-        $res = $ilDB->queryF($query, array('text'), array($parts[0]));
-        $data = $ilDB->fetchAssoc($res);
-
-        if (!(int) $data['usr_id']) {
+        $user_id = ilSession::getUserIdBySessionId($sid);
+        if (is_bool($user_id) && !$user_id) {
             $this->raiseError('User does not exist', 'Client');
         }
-        return (int) $data['usr_id'];
+        return $user_id;
     }
 }
