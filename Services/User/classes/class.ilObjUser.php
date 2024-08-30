@@ -3690,7 +3690,7 @@ class ilObjUser extends ilObject
         $hide_users = $DIC['legalDocuments']->usersWithHiddenOnlineStatus(array_map('intval', array_column($users, 'user_id')));
         $users = array_filter(
             $users,
-            fn ($user) => !in_array((int) $user['user_id'], $hide_users, true)
+            fn($user) => !in_array((int) $user['user_id'], $hide_users, true)
         );
 
         return $users;
