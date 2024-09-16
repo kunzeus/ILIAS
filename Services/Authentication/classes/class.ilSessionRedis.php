@@ -27,7 +27,11 @@ class ilSessionRedis implements ilSessionBackendInterface
 {
     public static function isRedisEnabled(): bool
     {
-        return ilSessionRedisHandler::getInstance()::isEnabled();
+        if (ilSessionRedisHandler::isEnabled()) {
+            ilSessionRedisHandler::getInstance();
+            return true;
+        }
+        return false;
     }
 
     public static function getDataBySessionId(string $session_id): string
@@ -72,7 +76,7 @@ class ilSessionRedis implements ilSessionBackendInterface
             'ctime' => $now,
             'type' => (int) (ilSession::get('SessionType') ?? 0),
             'context' => ilContext::getType(),
-            'remote_addr' => $_SERVER['REMOTE_ADDR']
+            'remote_addr' => $_SERVER['REMOTE_ADDR'],
         ];
         $value_string = json_encode($value_fields);
 
@@ -210,8 +214,6 @@ class ilSessionRedis implements ilSessionBackendInterface
         }
         return $result_array;
     }
-
-
 
     public static function getSessionBySessionId(string $session_id): array
     {

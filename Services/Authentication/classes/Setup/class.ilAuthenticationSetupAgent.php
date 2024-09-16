@@ -37,13 +37,22 @@ class ilAuthenticationSetupAgent implements Setup\Agent
 
     public function getInstallObjective(Setup\Config $config = null): Setup\Objective
     {
-        return new Setup\Objective\NullObjective();
+        return new Setup\ObjectiveCollection(
+            'Authentication setup objectives',
+            true,
+            new ilAuthenticationRedisObjective()
+        );
     }
 
     public function getUpdateObjective(Setup\Config $config = null): Setup\Objective
     {
-        return new ilDatabaseUpdateStepsExecutedObjective(
-            new ilAuthenticationDatabaseUpdateSteps8()
+        return new Setup\ObjectiveCollection(
+            'Authentication setup objectives',
+            true,
+            new ilAuthenticationRedisObjective(),
+            new ilDatabaseUpdateStepsExecutedObjective(
+                new ilAuthenticationDatabaseUpdateSteps8()
+            )
         );
     }
 

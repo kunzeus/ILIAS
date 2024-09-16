@@ -18,13 +18,14 @@ declare(strict_types=1);
  *
  *********************************************************************/
 
-/**
- * @author Ulf Bischoff <ulf.bischoff@tik.uni-stuttgart.de>
- */
+use Predis\Client;
+use Predis\Connection\ConnectionException;
+use Predis\Response\ServerException;
+
 class ilSessionRedisHandler
 {
     private static ilSessionRedisHandler $instance;
-    private static Redis $redis_client;
+    private static Client $redis_client;
 
     private function __construct()
     {
@@ -34,16 +35,16 @@ class ilSessionRedisHandler
 
         if ($redis_enabled == '1') {
             try {
-                self::$redis_client = new Redis();
-                self::$redis_client->connect(
-                    $client_ini->readVariable('session', 'redis_host'),
-                    (int) $client_ini->readVariable('session', 'redis_port')
-                );
-                $redis_auth = $client_ini->readVariable('session', 'redis_auth');
-                if ($redis_auth == '1') {
-                    self::$redis_client->auth($client_ini->readVariable('session', 'redis_password'));
-                }
-            } catch (RedisException $e) {
+                // Initialize Predis client with connection parameters
+                self::$redis_client = new Client([
+                    'scheme' => 'tcp',
+                    'host'   => $client_ini->readVariable('session', 'redis_host'),
+                    'port'   => (int) $client_ini->readVariable('session', 'redis_port'),
+                    'password' => $client_ini->readVariable('session', 'redis_auth') == 1 ? $client_ini->readVariable('session', 'redis_password') : null,
+                    'user' => $client_ini->readVariable('session', 'redis_auth') == 1 ? $client_ini->readVariable('session', 'redis_user') : null,
+                ]);
+            } catch (ConnectionException $e) {
+                // Handle connection exception
                 return false;
             }
         }
@@ -61,42 +62,40 @@ class ilSessionRedisHandler
     public static function isEnabled(): bool
     {
         global $DIC;
-        if ($DIC->clientIni()->readVariable('session', 'redis_enabled')) {
-            return true;
-        }
-        return false;
+        return (bool) $DIC->clientIni()->readVariable('session', 'redis_enabled');
     }
 
     public static function getTTL(string $key): bool|int
     {
         try {
-            if(isset(self::$redis_client)) {
+            if (isset(self::$redis_client)) {
                 return self::$redis_client->ttl($key);
             }
-        } catch (RedisException $e) {
+        } catch (ServerException | ConnectionException $e) {
             return false;
         }
         return false;
     }
 
-    public static function setExpireTimestamp(string $key, $timeStampInSeconds): bool
+    public static function setExpireTimestamp(string $key, $timeStampInSeconds): bool|int
     {
-        if(isset(self::$redis_client)) {
+        if (isset(self::$redis_client)) {
             try {
-                return self::$redis_client->expireAt($key, $timeStampInSeconds);
-            } catch (RedisException $e) {
+                return self::$redis_client->expireat($key, $timeStampInSeconds);
+            } catch (ServerException | ConnectionException $e) {
                 return false;
             }
         }
-        return true;
+        return false;
     }
 
     public static function set(string $key, string $value): bool
     {
         if (isset(self::$redis_client)) {
             try {
-                return self::$redis_client->set($key, $value);
-            } catch (RedisException $e) {
+                return (bool) self::$redis_client->set($key, $value);
+            } catch (ServerException | ConnectionException $e) {
+                return false;
             }
         }
         return false;
@@ -106,8 +105,9 @@ class ilSessionRedisHandler
     {
         if (isset(self::$redis_client)) {
             try {
-                return self::$redis_client->exists($key);
-            } catch (RedisException $e) {
+                return (bool) self::$redis_client->exists($key);
+            } catch (ServerException | ConnectionException $e) {
+                return false;
             }
         }
         return false;
@@ -117,20 +117,21 @@ class ilSessionRedisHandler
     {
         if (isset(self::$redis_client)) {
             try {
-                return self::$redis_client->get($key);
-            } catch (RedisException $e) {
+                return self::$redis_client->get($key) ?: false;
+            } catch (ServerException | ConnectionException $e) {
+                return false;
             }
         }
         return false;
     }
 
-
     public static function delete(string $key): bool|int
     {
         if (isset(self::$redis_client)) {
             try {
-                return self::$redis_client->del($key);
-            } catch (RedisException $e) {
+                return self::$redis_client->del([$key]);
+            } catch (ServerException | ConnectionException $e) {
+                return false;
             }
         }
         return false;
@@ -139,9 +140,12 @@ class ilSessionRedisHandler
     public static function keys(): array
     {
         try {
-            return self::$redis_client->keys('*');
-        } catch (RedisException $e) {
+            if (isset(self::$redis_client)) {
+                return self::$redis_client->keys('*');
+            }
+        } catch (ServerException | ConnectionException $e) {
+            return [];
         }
+        return [];
     }
-
 }
