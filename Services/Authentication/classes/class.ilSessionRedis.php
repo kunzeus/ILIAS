@@ -127,7 +127,7 @@ class ilSessionRedis implements ilSessionBackendInterface
                 $cookieJar = $DIC->http()->cookieJar()->without(session_name());
                 $cookieJar->renderIntoResponseHeader($DIC->http()->response());
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // ignore
             // this is needed for "header already"  sent errors when the random cleanup of expired sessions is triggered
         }

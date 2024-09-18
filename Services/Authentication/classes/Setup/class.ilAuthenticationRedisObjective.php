@@ -19,6 +19,7 @@
 declare(strict_types=1);
 
 use ILIAS\Setup;
+use ILIAS\Setup\Environment;
 use Predis\Client;
 use Predis\Connection\ConnectionException;
 
@@ -39,7 +40,7 @@ class ilAuthenticationRedisObjective implements Setup\Objective
         return true;
     }
 
-    public function getPreconditions(\ILIAS\Setup\Environment $environment): array
+    public function getPreconditions(Environment $environment): array
     {
         $preconditions = [];
         $preconditions[] = new Setup\Objective\ClientIdReadObjective();
@@ -47,7 +48,7 @@ class ilAuthenticationRedisObjective implements Setup\Objective
         return $preconditions;
     }
 
-    public function achieve(\ILIAS\Setup\Environment $environment): \ILIAS\Setup\Environment
+    public function achieve(Environment $environment): Environment
     {
         return $environment;
     }
@@ -55,18 +56,9 @@ class ilAuthenticationRedisObjective implements Setup\Objective
     /**
      * @throws Exception
      */
-    public function isApplicable(\ILIAS\Setup\Environment $environment): bool
+    public function isApplicable(Environment $environment): bool
     {
-        $client_ini = $environment->getResource(Setup\Environment::RESOURCE_CLIENT_INI);
-        $ilias_ini = $environment->getResource(Setup\Environment::RESOURCE_ILIAS_INI);
-
-        echo "db_host: " . $client_ini->readVariable('db', 'host'). "\n";
-        echo "db_user: " . $client_ini->readVariable('db', 'user'). "\n";
-        echo "db_name: " . $client_ini->readVariable('db', 'name'). "\n";
-        echo "redis_enabled: " . $client_ini->readVariable('sessions', 'redis_enabled'). "\n";
-        echo "redis_auth: " . $client_ini->readVariable('sessions', 'redis_auth'). "\n";
-        echo "expire: " . $client_ini->readVariable('sessions', 'expire'). "\n";
-        echo "system_Folder_ID: " . $client_ini->readVariable('system', 'SYSTEM_FOLDER_ID'). "\n";
+        $client_ini = $environment->getResource(Environment::RESOURCE_CLIENT_INI);
 
         if ($client_ini->readVariable('session', 'redis_enabled') == 0) {
             echo "Redis not enabled";
@@ -75,11 +67,11 @@ class ilAuthenticationRedisObjective implements Setup\Objective
         try {
             // Initialize Predis client with connection parameters
             $redis_client = new Client([
-                'scheme'   => 'tcp',
-                'host'     => $client_ini->readVariable('session', 'redis_host'),
-                'port'     => (int) $client_ini->readVariable('session', 'redis_port'),
+                'scheme' => 'tcp',
+                'host' => $client_ini->readVariable('session', 'redis_host'),
+                'port' => (int) $client_ini->readVariable('session', 'redis_port'),
                 'password' => $client_ini->readVariable('session', 'redis_auth') == 1 ? $client_ini->readVariable('session', 'redis_password') : null,
-                'user'     => $client_ini->readVariable('session', 'redis_auth') == 1 ? $client_ini->readVariable('session', 'redis_user') : null,
+                'user' => $client_ini->readVariable('session', 'redis_auth') == 1 ? $client_ini->readVariable('session', 'redis_user') : null,
             ]);
             echo "finished redis client without exception";
             $redis_client->set('setup_session_key', 'setup_session_value');

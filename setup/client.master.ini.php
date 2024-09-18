@@ -30,6 +30,13 @@ style = delos
  
 [session]
 expire = 1800 
+redis_enabled =
+redis_auth =
+redis_host =
+redis_port =
+redis_password =
+redis_user =
+redis_database =
 
 [system]
 ROOT_FOLDER_ID = 1
