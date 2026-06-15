@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * This file is part of ILIAS, a powerful learning management system
  * published by ILIAS open source e-Learning e.V.
@@ -18,16 +16,22 @@ declare(strict_types=1);
  *
  *********************************************************************/
 
-use ILIAS\Setup;
+declare(strict_types=1);
 
-class ilScorm2004SetupAgent extends Setup\Agent\NullAgent
+namespace ILIAS\AuthSOAP;
+
+/**
+ * @phpstan-type ValidationArray array{valid: bool, firstname?: string, lastname?: string, email?: string}
+ */
+readonly class SessionValidationResult
 {
-    public function getUpdateObjective(Setup\Config $config = null): Setup\Objective
-    {
-        return new ilDatabaseUpdateStepsExecutedObjective(new ilScorm2004DatabaseUpdateSteps());
-    }
-    public function getStatusObjective(Setup\Metrics\Storage $storage): Setup\Objective
-    {
-        return new ilDatabaseUpdateStepsMetricsCollectedObjective($storage, new ilScorm2004DatabaseUpdateSteps());
+    /**
+     * @param ValidationArray $validation
+     */
+    public function __construct(
+        public array $validation,
+        public string $request = '',
+        public string $response = '',
+    ) {
     }
 }
