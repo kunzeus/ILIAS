@@ -4827,7 +4827,7 @@ common#:#msg_no_perm_paste#:#Nie masz uprawnień do wklejania następujących ob
 common#:#msg_no_perm_paste_object_in_folder#:#Nie masz uprawnień do dodawania obiektu %s do folderu %s.
 common#:#msg_no_perm_perm#:#Nie możesz modyfikować uprawnień.
 common#:#msg_no_perm_read#:#Nie masz uprawnień do dostępu do tej pozycji.
-common#:#msg_no_perm_read_item#:#Nie masz uprawnień do dostępu do pozycji '%s'.
+common#:#msg_no_perm_read_item#:#Nie masz uprawnień do dostępu do pozycji.
 common#:#msg_no_perm_read_lm#:#Nie masz uprawnień do czytania tego modułu nauczania.
 common#:#msg_no_perm_view_roles_of_user#:#You have no permission to view the role assignment of this user###26 08 2025 new variable
 common#:#msg_no_perm_write#:#Nie masz uprawnień do pisania.
@@ -5380,6 +5380,7 @@ common#:#preconditions_optional_hint#:#Musisz spełnić min. <b>%s</b> poniższy
 common#:#predefined_template#:#Predefiniowany szablon roli
 common#:#preferences#:#Preferencje
 common#:#presentation_table_more#:#more
+common#:#presenter#:#Presenter###11 08 2026 new variable
 common#:#preview#:#Podgląd
 common#:#preview_create#:#Utwórz podgląd
 common#:#preview_delete#:#Usuń podgląd
@@ -10288,6 +10289,7 @@ glo#:#glo_really_remove_from_collection#:#Are you sure you want to remove the fo
 glo#:#glo_reference#:#Odwołanie
 glo#:#glo_reference_terms#:#Linkuj pojęcia
 glo#:#glo_referenced_term#:#Podlinkowane pojęcia
+glo#:#glo_remove_glossary#:##Are you sure you want to remove the following glossary from the list of auto-linked glossaries?###11 08 2026 new variable
 glo#:#glo_removed_from_collection_info#:#The glossary has been removed from the collection glossary.###26 08 2024 new variable
 glo#:#glo_reset_all_boxes#:#Reset All Boxes###26 08 2024 new variable
 glo#:#glo_save_and_continue#:#Save and Continue###21 05 2025 new variable
